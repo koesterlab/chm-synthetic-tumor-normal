@@ -6,17 +6,16 @@ normal_reads_n = 262578416
 tumor_reads_n = 231234481
 percentages = [5, 20]
 
-def get_tumor_sample_n(percentage):
+def get_sample_n(percentage):
     f = float(percentage) / 100
     n = normal_reads_n
-    # find x such that x / (x + n) == f
-    x = int(math.ceil(f * n / (1.0 - f)))
-    return x
+    # access with tumor: [0], normal: [1]
+    return (int(f * n), int((1 - f) * n))
 
 
 rule all:
     input:
-        expand("dataset/mix{percentage}/truth.vcf", percentage=percentages),
+        expand(["dataset/mix{percentage}/truth.vcf", "dataset/mix{percentage}/truth.nochr.vcf"], percentage=percentages),
         expand("dataset/mix{percentage}/{tissue}_{read}.fastq", percentage=percentages, read=[1, 2], tissue=["tumor", "normal"])
 
 rule get_reads:
@@ -70,15 +69,15 @@ rule mix_reads:
         "dataset/mix{percentage}/tumor_1.fastq",
         "dataset/mix{percentage}/tumor_2.fastq"
     params:
-        tumor_n=lambda w: get_tumor_sample_n(w.percentage),
+        ns=lambda w: get_sample_n(w.percentage),
         seed=23274
     conda:
         "envs/seqtk.yaml"
     shell:
-        "cp {input.normal[0]} {output[0]}; "
-        "cp {input.normal[1]} {output[1]}; "
-        "seqtk sample -s{params.seed} {input.tumor[0]} {params.tumor_n} >> {output[0]}; "
-        "seqtk sample -s{params.seed} {input.tumor[1]} {params.tumor_n} >> {output[1]}; "
+        "seqtk sample -s{params.seed} {input.normal[0]} {params.ns[1]} > {output[0]}; "
+        "seqtk sample -s{params.seed} {input.normal[1]} {params.ns[1]} > {output[1]}; "
+        "seqtk sample -s{params.seed} {input.tumor[0]} {params.ns[0]} >> {output[0]}; "
+        "seqtk sample -s{params.seed} {input.tumor[1]} {params.ns[1]} >> {output[1]}; "
 
 
 rule copy_normal:
@@ -90,3 +89,12 @@ rule copy_normal:
     shell:
         "cp {input[0]} {output[0]}; "
         "cp {input[1]} {output[1]}"
+
+
+rule remove_chr:
+    input:
+        "dataset/mix{percentage}/truth.vcf"
+    output:
+        "dataset/mix{percentage}/truth.nochr.vcf"
+    shell:
+        "sed 's/chr//g' {input} > {output}"
