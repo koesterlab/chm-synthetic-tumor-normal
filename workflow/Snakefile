@@ -1,0 +1,79 @@
+import math
+
+tumor = "SRR2842672"
+normal = "SRR2088062"
+normal_reads_n = 262578416
+tumor_reads_n = 231234481
+
+def get_tumor_sample_n(percentage):
+    f = float(percentage) / 100
+    n = normal_reads_n
+    # find x such that x / (x + n) == f
+    x = int(math.ceil(f * n / (1.0 - f)))
+    return x
+
+
+rule all:
+    input:
+        expand(["dataset/mix{percentage}/truth.vcf", "dataset/mix{percentage}/reads_1.fastq", "dataset/mix{percentage}/reads_2.fastq"], percentage=[5,20])
+
+rule get_reads:
+    output:
+        "srr/{accession}_1.fastq",
+        "srr/{accession}_2.fastq"
+    conda:
+        "envs/sra-tools.yaml"
+    shell:
+        "perl -U `which fasterq-dump` {wildcards.accession}"
+
+
+rule get_eval_kit:
+    output:
+        directory("CHM-eval.kit")
+    shell:
+        "curl -L https://github.com/lh3/CHM-eval/releases/download/v0.4/CHM-evalkit-20180221.tar \
+    | tar xf -"
+
+
+rule get_confident_vcf:
+    input:
+        "CHM-eval.kit"
+    output:
+        "truth/confident.vcf"
+    conda:
+        "envs/tools.yaml"
+    shell:
+        "bedtools intersect -header -a {input}/full.38.vcf.gz -b {input}/full.38.bed.gz > {output}"
+
+
+rule compose_truth:
+    input:
+        "truth/confident.vcf"
+    output:
+        "dataset/mix{percentage}/truth.vcf"
+    conda:
+        "envs/cyvcf2.yaml"
+    script:
+        "scripts/compose-truth.py"
+
+
+get_srr_reads = lambda accession: expand("srr/{accession}_{read}.fastq", accession=accession, read=[1,2])
+
+
+rule mix_reads:
+    input:
+        normal=get_srr_reads(normal),
+        tumor=get_srr_reads(tumor)
+    output:
+        "dataset/mix{percentage}/reads_1.fastq",
+        "dataset/mix{percentage}/reads_2.fastq"
+    params:
+        tumor_n=lambda w: get_tumor_sample_n(w.percentage),
+        seed=23274
+    conda:
+        "envs/seqtk.yaml"
+    shell:
+        "cp {input.normal[0]} {output[0]}; "
+        "cp {input.normal[1]} {output[1]}; "
+        "seqtk sample -s{params.seed} {input.tumor[0]} {params.tumor_n} >> {output[0]}; "
+        "seqtk sample -s{params.seed} {input.tumor[1]} {params.tumor_n} >> {output[1]}; "
