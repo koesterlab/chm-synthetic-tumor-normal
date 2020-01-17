@@ -4,6 +4,7 @@ tumor = "SRR2842672"
 normal = "SRR2088062"
 normal_reads_n = 262578416
 tumor_reads_n = 231234481
+percentages = [5, 20]
 
 def get_tumor_sample_n(percentage):
     f = float(percentage) / 100
@@ -15,7 +16,8 @@ def get_tumor_sample_n(percentage):
 
 rule all:
     input:
-        expand(["dataset/mix{percentage}/truth.vcf", "dataset/mix{percentage}/reads_1.fastq", "dataset/mix{percentage}/reads_2.fastq"], percentage=[5,20])
+        expand("dataset/mix{percentage}/truth.vcf", percentage=percentages),
+        expand("dataset/mix{percentage}/{tissue}_{read}.fastq", percentage=percentages, read=[1, 2], tissue=["tumor", "normal"])
 
 rule get_reads:
     output:
@@ -65,8 +67,8 @@ rule mix_reads:
         normal=get_srr_reads(normal),
         tumor=get_srr_reads(tumor)
     output:
-        "dataset/mix{percentage}/reads_1.fastq",
-        "dataset/mix{percentage}/reads_2.fastq"
+        "dataset/mix{percentage}/tumor_1.fastq",
+        "dataset/mix{percentage}/tumor_2.fastq"
     params:
         tumor_n=lambda w: get_tumor_sample_n(w.percentage),
         seed=23274
@@ -77,3 +79,14 @@ rule mix_reads:
         "cp {input.normal[1]} {output[1]}; "
         "seqtk sample -s{params.seed} {input.tumor[0]} {params.tumor_n} >> {output[0]}; "
         "seqtk sample -s{params.seed} {input.tumor[1]} {params.tumor_n} >> {output[1]}; "
+
+
+rule copy_normal:
+    input:
+        get_srr_reads(normal)
+    output:
+        "dataset/mix{percentage}/normal_1.fastq",
+        "dataset/mix{percentage}/normal_2.fastq"
+    shell:
+        "cp {input[0]} {output[0]}; "
+        "cp {input[1]} {output[1]}"
