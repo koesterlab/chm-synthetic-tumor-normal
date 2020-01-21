@@ -25,7 +25,7 @@ rule get_reads:
     conda:
         "envs/sra-tools.yaml"
     shell:
-        "perl -U `which fasterq-dump` {wildcards.accession}"
+        "perl -U `which fasterq-dump` -O srr {wildcards.accession}"
 
 
 rule get_eval_kit:
