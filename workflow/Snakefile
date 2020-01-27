@@ -15,7 +15,7 @@ def get_sample_n(percentage):
 
 rule all:
     input:
-        expand(["dataset/mix{percentage}/truth.vcf", "dataset/mix{percentage}/truth.nochr.vcf"], percentage=percentages),
+        expand("dataset/mix{percentage}/{file}", percentage=percentages, file=["truth.vcf", "truth.nochr.vcf", "confident-regions.bed"]),
         expand("dataset/mix{percentage}/{tissue}_{read}.fastq", percentage=percentages, read=[1, 2], tissue=["tumor", "normal"])
 
 rule get_reads:
@@ -45,6 +45,14 @@ rule get_confident_vcf:
         "envs/tools.yaml"
     shell:
         "bedtools intersect -header -a {input}/full.38.vcf.gz -b {input}/full.38.bed.gz > {output}"
+
+rule get_confident_bed:
+    input:
+        "CHM-eval.kit"
+    output:
+        "dataset/mix{percentage}/confident-regions.bed"
+    shell:
+        "gzip -d -c {input}/full.38.bed.gz > {output}"
 
 
 rule compose_truth:
@@ -77,7 +85,7 @@ rule mix_reads:
         "seqtk sample -s{params.seed} {input.normal[0]} {params.ns[1]} > {output[0]}; "
         "seqtk sample -s{params.seed} {input.normal[1]} {params.ns[1]} > {output[1]}; "
         "seqtk sample -s{params.seed} {input.tumor[0]} {params.ns[0]} >> {output[0]}; "
-        "seqtk sample -s{params.seed} {input.tumor[1]} {params.ns[1]} >> {output[1]}; "
+        "seqtk sample -s{params.seed} {input.tumor[1]} {params.ns[0]} >> {output[1]}; "
 
 
 rule copy_normal:
