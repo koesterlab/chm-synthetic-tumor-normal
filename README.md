@@ -1,6 +1,7 @@
 # Snakemake workflow: generating a synthetic tumor/normal dataset from the haploid cell lines CHM1 and CHM13
 
 [![Snakemake](https://img.shields.io/badge/snakemake-≥5.7.0-brightgreen.svg)](https://snakemake.readthedocs.io)
+[![DOI](https://zenodo.org/badge/234517794.svg)](https://zenodo.org/badge/latestdoi/234517794)
 
 This workflow generates a synthetic tumor/normal dataset based on the [syndip benchmark](https://doi.org/10.1038/s41592-018-0054-7).
 
